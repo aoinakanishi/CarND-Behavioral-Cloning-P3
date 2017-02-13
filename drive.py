@@ -13,12 +13,22 @@ from flask import Flask
 from io import BytesIO
 
 from keras.models import load_model
+import tensorflow as tf
+
+# set TensorFlow option for OOM
+from keras import backend as K
+config = tf.ConfigProto(allow_soft_placement=True)
+config.gpu_options.allow_growth = True
+session = tf.Session(config=config)
+K.set_session(session)
 
 sio = socketio.Server()
 app = Flask(__name__)
 model = None
 prev_image_array = None
 
+Y_START, Y_END, X_START, X_END = 55, 105, 10, -10
+Y_START, Y_END, X_START, X_END = 50, 140, 0, 320
 
 @sio.on('telemetry')
 def telemetry(sid, data):
@@ -33,10 +43,15 @@ def telemetry(sid, data):
         imgString = data["image"]
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
+        #print(image_array.shape)
+        #print(image_array[Y_START: Y_END, X_START: X_END, :].shape)
+        #steering_angle = float(model.predict(image_array[None, Y_START: Y_END, X_START: X_END, :], batch_size=1))
         steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
         throttle = 0.2
         print(steering_angle, throttle)
         send_control(steering_angle, throttle)
+#(160, 320, 3)
+#(1, 50, 300, 3)
 
         # save frame
         if args.image_folder != '':
